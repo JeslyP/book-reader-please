@@ -46,7 +46,7 @@ Netlify or Vercel also work. It's a plain static site with no build step.
 
 **Free device voices**
 
-- **iPhone/iPad:** Settings → Accessibility → Spoken Content → Voices → English. Download a voice marked **Premium** or **Enhanced** (for example "Ava (Premium)"). Then reopen the app and choose it in Settings.
+- **iPhone/iPad:** Settings → Accessibility → Spoken Content → Voices → English. Download a voice marked **Premium** or **Enhanced** (for example "Ava (Premium)"). Then reopen the app and choose it in Settings. (Siri voices can't be used: Apple keeps them for Siri and its own apps, and doesn't let any other app or website use them.)
 - **Mac:** System Settings → Accessibility → Spoken Content → System Voice → Manage Voices.
 - **Windows/any computer:** use **Microsoft Edge** and pick a voice with "Online (Natural)" in its name.
 
