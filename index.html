@@ -32,7 +32,7 @@
     <label id="drop" class="drop">
       <input id="file-input" type="file" accept=".pdf,.epub,.txt,application/pdf,application/epub+zip,text/plain" multiple hidden />
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 16V7.8l-3 3L6.6 9.4 12 4l5.4 5.4L16 10.8l-3-3V16h-2Zm-6 4v-5h2v3h10v-3h2v5H5Z"/></svg>
-      <span><strong>Add a book</strong><br /><small>PDF, EPUB or TXT. Tap here or drop files.</small></span>
+      <span><strong>Add a book</strong><br /><small>PDF (including scanned), EPUB or TXT. Tap here or drop files.</small></span>
     </label>
     <div id="import-status" class="import-status" hidden></div>
 
@@ -127,6 +127,10 @@
         </select>
       </label>
       <button id="test-eleven" class="btn">▶ Test voice</button>
+      <div class="tip">
+        <p id="audio-usage" class="small" style="margin:0 0 4px"></p>
+        <button id="audio-clear" class="btn">Delete saved audio</button>
+      </div>
 
       <details class="clone" id="clone">
         <summary>🎙 Make a copy of my voice</summary>

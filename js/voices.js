@@ -1,3 +1,5 @@
+import { getAudio, putAudio } from "./storage.js";
+
 // Two ways to speak a chunk of text while reporting which word is being said:
 //   DeviceVoice      – the voices built into the phone/computer (free, works offline)
 //   ElevenLabsVoice  – very natural AI voices, including a clone of your own voice (needs an API key)
@@ -168,6 +170,9 @@ export class ElevenLabsVoice {
     const key = `${voiceId}|${modelId}|${chunk.text}`;
     if (this.cache.has(key)) return this.cache.get(key);
     const job = (async () => {
+      // Already generated this exact text with this voice before? Play the saved copy for free.
+      const saved = await getAudio(key);
+      if (saved) return { url: URL.createObjectURL(saved.blob), times: saved.times, saved: true };
       const res = await fetch(`${API}/text-to-speech/${voiceId}/with-timestamps?output_format=mp3_44100_128`, {
         method: "POST",
         headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
@@ -176,11 +181,12 @@ export class ElevenLabsVoice {
       if (!res.ok) throw new Error(await errorText(res));
       const data = await res.json();
       const bytes = Uint8Array.from(atob(data.audio_base64), (c) => c.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+      const blob = new Blob([bytes], { type: "audio/mpeg" });
       // alignment gives a start time for every character; take the time of each word's first letter.
       const starts = data.alignment?.character_start_times_seconds || [];
       const times = chunk.offsets.map((o) => starts[Math.min(o, starts.length - 1)] ?? 0);
-      return { url, times };
+      putAudio(key, blob, times);
+      return { url: URL.createObjectURL(blob), times };
     })();
     job.catch(() => this.cache.delete(key));
     this.cache.set(key, job);

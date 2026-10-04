@@ -1,6 +1,6 @@
 // Lets the app open without internet once it has been loaded once.
 // Bump VERSION whenever app files change so phones pick up the new version.
-const VERSION = "read-aloud-v1";
+const VERSION = "read-aloud-v2";
 const FILES = [
   "./",
   "index.html",

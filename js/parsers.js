@@ -40,23 +40,93 @@ async function parsePdf(file, onProgress) {
   } catch {}
 
   const sections = [];
-  for (let n = 1; n <= pdf.numPages; n++) {
-    const page = await pdf.getPage(n);
-    const content = await page.getTextContent();
-    sections.push({ title: `Page ${n}`, paragraphs: pdfPageToParagraphs(content.items) });
-    page.cleanup();
-    onProgress(n / pdf.numPages);
+  let ocr = null;
+  let ocrPages = 0;
+  try {
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const page = await pdf.getPage(n);
+      const content = await page.getTextContent();
+      let paragraphs = pdfPageToParagraphs(content.items);
+      // No text layer means this page is a scanned image: recognise the text in it instead.
+      const textLength = paragraphs.reduce((sum, p) => sum + p.text.length, 0);
+      if (textLength < 20) {
+        onProgress((n - 1) / pdf.numPages, `Scanned page found. Recognising text on page ${n} of ${pdf.numPages}…`);
+        ocr ??= await startOcr((msg) => onProgress((n - 1) / pdf.numPages, msg));
+        const recognised = await ocrPage(ocr, page);
+        if (recognised.reduce((sum, p) => sum + p.text.length, 0) > textLength) {
+          paragraphs = recognised;
+          ocrPages++;
+        }
+      }
+      sections.push({ title: `Page ${n}`, paragraphs });
+      page.cleanup();
+      onProgress(n / pdf.numPages, ocr ? `Recognising text on page ${n} of ${pdf.numPages}…` : undefined);
+    }
+  } finally {
+    await ocr?.terminate();
+    await pdf.destroy();
   }
-  await pdf.destroy();
 
-  // Drop empty pages (e.g. scanned images with no text layer) but keep page numbers in titles.
+  // Drop pages with no text at all (blank pages, pictures) but keep page numbers in titles.
   const nonEmpty = sections.filter((s) => s.paragraphs.length);
-  if (!nonEmpty.length) {
-    throw new Error(
-      "This PDF has no selectable text (it is probably scanned images). Run it through an OCR tool first, then try again."
-    );
-  }
-  return { title, sections: nonEmpty };
+  if (!nonEmpty.length) throw new Error("Couldn't find any text in this PDF, even after scanning the pages.");
+  return { title, sections: nonEmpty, ocrPages };
+}
+
+// ---------- OCR for scanned PDFs (Tesseract, runs on this device, loaded only when needed) ----------
+
+const vendor = (path) => new URL(`../vendor/ocr/${path}`, import.meta.url).href;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("Couldn't load the text recogniser. Check your internet connection."));
+    document.head.append(s);
+  });
+}
+
+async function startOcr(onStatus) {
+  onStatus("Loading text recogniser (first time only)…");
+  if (!window.Tesseract) await loadScript(vendor("tesseract.min.js"));
+  return window.Tesseract.createWorker("eng", 1 /* LSTM engine */, {
+    workerPath: vendor("worker.min.js"),
+    corePath: vendor("core"),
+    langPath: vendor("lang"),
+    gzip: true,
+  });
+}
+
+async function ocrPage(worker, page) {
+  const base = page.getViewport({ scale: 1 });
+  // ~2000px wide is a good balance between accuracy and speed.
+  const viewport = page.getViewport({ scale: Math.min(3, 2000 / base.width) });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  const { data } = await worker.recognize(canvas);
+  canvas.width = canvas.height = 0; // free memory right away on phones
+  return ocrTextToParagraphs(data.text || "");
+}
+
+export function ocrTextToParagraphs(text) {
+  return text
+    .split(/\n\s*\n/)
+    .map((block) =>
+      block
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .reduce((acc, line) => (/[A-Za-z]-$/.test(acc) ? acc.slice(0, -1) + line : acc ? acc + " " + line : line), "")
+    )
+    .map(clean)
+    .filter((t) => t.length > 1 && !/^\d{1,4}$/.test(t))
+    .map((t) => ({ text: t, kind: "p" }));
 }
 
 // Group pdf.js text items into lines, then lines into paragraphs using vertical gaps.

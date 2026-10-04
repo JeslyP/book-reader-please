@@ -1,5 +1,5 @@
 import { parseBook } from "./parsers.js";
-import { saveBook, getBook, deleteBook, listBooks, savePosition, settings } from "./storage.js";
+import { saveBook, getBook, deleteBook, listBooks, savePosition, settings, audioUsage, clearAudio } from "./storage.js";
 import { DeviceVoice, ElevenLabsVoice } from "./voices.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -66,8 +66,10 @@ async function importFiles(files) {
     status.hidden = false;
     status.textContent = `Opening “${file.name}”…`;
     try {
-      const parsed = await parseBook(file, (p) => {
-        status.textContent = `Opening “${file.name}”… ${Math.round(p * 100)}%`;
+      const parsed = await parseBook(file, (p, message) => {
+        status.textContent = message
+          ? `${message} (${Math.round(p * 100)}%)`
+          : `Opening “${file.name}”… ${Math.round(p * 100)}%`;
       });
       const book = {
         id: crypto.randomUUID?.() || String(Date.now() + Math.random()),
@@ -80,6 +82,7 @@ async function importFiles(files) {
       };
       await saveBook(book);
       status.hidden = true;
+      if (parsed.ocrPages) toast(`Recognised text on ${parsed.ocrPages} scanned page${parsed.ocrPages > 1 ? "s" : ""}. A few words may be wrong.`);
       await renderLibrary();
       if (files.length === 1) openBook(book.id);
     } catch (err) {
@@ -479,9 +482,20 @@ function fillElevenVoices(voices) {
   sel.dispatchEvent(new Event("change"));
 }
 
+async function showAudioUsage() {
+  try {
+    const { bytes, clips } = await audioUsage();
+    $("#audio-usage").textContent = clips
+      ? `${(bytes / 1024 / 1024).toFixed(1)} MB of AI audio saved on this device (${clips} clips). Replaying these is free.`
+      : "No AI audio saved yet. Anything you listen to is saved here, so replaying it is free.";
+    $("#audio-clear").disabled = !clips;
+  } catch {}
+}
+
 function openSettings() {
   fillDeviceVoices();
   updateEngineUI();
+  showAudioUsage();
   $("#settings").showModal();
 }
 
@@ -671,6 +685,11 @@ function bindEvents() {
   };
   const savedEleven = settings.get("elevenVoices", null);
   if (savedEleven) fillElevenVoices(savedEleven);
+  $("#audio-clear").onclick = async () => {
+    if (!confirm("Delete all saved AI audio? Listening again will use ElevenLabs credits.")) return;
+    await clearAudio();
+    showAudioUsage();
+  };
   $("#rec").onclick = toggleRecording;
   $("#clone-save").onclick = saveClone;
 

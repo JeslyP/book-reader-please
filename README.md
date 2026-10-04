@@ -1,6 +1,6 @@
 # Read Aloud
 
-A reading app for people who find reading hard. Open a **PDF**, **EPUB** or **TXT** book and it reads to you out loud, highlighting each word as it's spoken, a bit like Speechify.
+A reading app for people who find reading hard. Open a **PDF** (even a scanned one), **EPUB** or **TXT** book and it reads to you out loud, highlighting each word as it's spoken, a bit like Speechify.
 
 It's a web app, so it runs on iPhone, iPad, Android, Mac and Windows. You can add it to your home screen and it opens like a normal app.
 
@@ -12,6 +12,8 @@ It's a web app, so it runs on iPhone, iPad, Android, Mac and Windows. You can ad
   - *Device voices* (free, work offline). The app lists the best-sounding ones first.
   - *AI voices* from [ElevenLabs](https://elevenlabs.io), which sound very human
   - **Copy your own voice:** record about a minute of yourself reading and the app makes an AI version of your voice (needs ElevenLabs)
+- **Scanned PDFs work:** pages that are only pictures get their text recognised (OCR) on your device
+- **AI audio is saved on your device**, so listening to a part again doesn't use ElevenLabs credits (up to ~500 MB, oldest deleted first, and you can clear it in Settings)
 - Speed from 0.5× to 3×
 - Easy-to-read fonts (Atkinson Hyperlegible, Lexend), adjustable text size and line spacing
 - Light, sepia and dark themes. Four highlight colours, and an option to fade the text that isn't being read
@@ -58,7 +60,7 @@ ElevenLabs charges by the number of characters read, so check their pricing for 
 
 ## Limitations
 
-- **Scanned PDFs** (photos of pages) have no text to read. Run them through an OCR tool first, for example "Make searchable" in Adobe Acrobat or a free online OCR.
+- **Scanned PDFs** take a few seconds per page to import, and recognition is English-only for now. A few words may come out wrong on blurry scans.
 - PDFs with complex layouts (two columns, footnotes) may read in a slightly odd order.
 - DRM-protected EPUBs (bought from Apple Books, Kindle, etc.) can't be opened. DRM-free EPUBs, such as those from Project Gutenberg and Standard Ebooks, work.
 - On iPhone, device voices stop when the screen locks. The app keeps the screen awake while it reads.
@@ -73,6 +75,7 @@ Plain HTML/CSS/JavaScript, with no build step.
 | `js/app.js` | Library, reader, highlighting, playback, settings |
 | `js/parsers.js` | Pulls text out of PDF (via pdf.js) and EPUB (via JSZip) |
 | `js/voices.js` | Device speech (Web Speech API) and ElevenLabs voices with word timings |
-| `js/storage.js` | Saves books and reading positions in the browser (IndexedDB) |
+| `js/storage.js` | Saves books, reading positions and AI audio in the browser (IndexedDB) |
 | `sw.js`, `manifest.webmanifest` | Lets it install to the home screen and open offline |
 | `vendor/` | pdf.js 4.10.38 (legacy build) and JSZip 3.10.1 |
+| `vendor/ocr/` | Tesseract.js 6 with English data, used for scanned PDFs and only downloaded when needed |
